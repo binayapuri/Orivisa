@@ -17,17 +17,25 @@ const StudentSchema = new mongoose.Schema({
   },
   
   personalInfo: {
-    firstName: { type: String, required: true },
-    lastName: { type: String, required: true },
-    dateOfBirth: { type: Date, required: true },
-    nationality: { type: String, required: true },
-    currentCountry: String,
+    firstName: { type: String, required: true, trim: true },
+    lastName: { type: String, required: true, trim: true },
+    dateOfBirth: Date,
+    gender: { type: String, enum: ['male', 'female', 'other', 'prefer_not_to_say'] },
+    nationality: String,
+    countryOfResidence: String,
     phone: String,
-    whatsapp: String
+    address: {
+      street: String,
+      city: String,
+      state: String,
+      postcode: String,
+      country: String
+    }
   },
   
-  passportInfo: {
-    number: String,
+  passportDetails: {
+    passportNumber: String,
+    issueDate: Date,
     expiryDate: Date,
     issuingCountry: String
   },
@@ -43,10 +51,7 @@ const StudentSchema = new mongoose.Schema({
     startDate: Date,
     endDate: Date,
     gpa: Number,
-    documents: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Document'
-    }]
+    isCompleted: Boolean
   }],
   
   englishProficiency: {
@@ -55,47 +60,51 @@ const StudentSchema = new mongoose.Schema({
       enum: ['IELTS', 'PTE', 'TOEFL', 'Duolingo', 'None']
     },
     overallScore: Number,
+    listening: Number,
     reading: Number,
     writing: Number,
-    listening: Number,
     speaking: Number,
     testDate: Date,
-    documentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Document'
-    }
+    expiryDate: Date
   },
   
   workExperience: [{
+    jobTitle: String,
     company: String,
-    position: String,
-    industry: String,
+    country: String,
     startDate: Date,
     endDate: Date,
     isCurrent: Boolean,
-    description: String
+    description: String,
+    isRelevantToNomination: Boolean
   }],
-  
-  preferences: {
-    preferredCountries: [String],
-    preferredCourses: [String],
-    studyLevel: String,
-    intakePreference: [String],
-    budget: {
-      min: Number,
-      max: Number,
-      currency: { type: String, default: 'AUD' }
-    }
-  },
   
   currentVisa: {
     type: String,
     subclass: String,
     expiryDate: Date,
-    conditions: String
+    conditions: [String]
   },
   
-  // Assigned Agent
+  preferences: {
+    studyLevel: {
+      type: String,
+      enum: ['diploma', 'bachelor', 'master', 'phd']
+    },
+    preferredCountries: [String],
+    preferredCourses: [String],
+    intakePreference: [String],
+    budget: {
+      min: Number,
+      max: Number,
+      currency: { type: String, default: 'AUD' }
+    },
+    goals: {
+      type: String,
+      enum: ['study', 'pr', 'work', 'family']
+    }
+  },
+  
   assignedAgent: {
     agentId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -104,12 +113,16 @@ const StudentSchema = new mongoose.Schema({
     assignedAt: Date,
     status: {
       type: String,
-      enum: ['pending', 'active', 'completed', 'terminated'],
+      enum: ['pending', 'active', 'inactive'],
       default: 'pending'
     }
   },
   
-  // Rewards & Cashback
+  eligibilityStatus: {
+    lastChecked: Date,
+    results: mongoose.Schema.Types.Mixed
+  },
+  
   totalCashback: {
     type: Number,
     default: 0
@@ -120,15 +133,9 @@ const StudentSchema = new mongoose.Schema({
     default: 0
   },
   
-  eligibilityStatus: {
-    lastChecked: Date,
-    results: mongoose.Schema.Types.Mixed
-  },
-  
   platformActivity: {
-    lastActive: Date,
     applicationsCount: { type: Number, default: 0 },
-    messagesCount: { type: Number, default: 0 }
+    lastActive: Date
   }
   
 }, {
@@ -136,8 +143,9 @@ const StudentSchema = new mongoose.Schema({
 });
 
 // Indexes
-StudentSchema.index({ tenantId: 1, 'personalInfo.email': 1 });
+StudentSchema.index({ userId: 1 }, { unique: true });
+StudentSchema.index({ tenantId: 1 });
 StudentSchema.index({ 'assignedAgent.agentId': 1 });
-StudentSchema.index({ 'preferences.preferredCountries': 1 });
+StudentSchema.index({ 'personalInfo.firstName': 1, 'personalInfo.lastName': 1 });
 
 module.exports = mongoose.model('Student', StudentSchema);

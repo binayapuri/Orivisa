@@ -3,59 +3,60 @@
 const mongoose = require('mongoose');
 
 const ApplicationSchema = new mongoose.Schema({
+  applicationRef: {
+    type: String,
+    unique: true,
+    // Will be auto-generated, not required in input
+  },
+  
   tenantId: {
     type: mongoose.Schema.Types.ObjectId,
     required: true,
     index: true
   },
   
-  // Unique Application Reference
-  applicationRef: {
-    type: String,
-    required: true,
-    unique: true,
-    default: () => `APP-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
-  },
-  
-  // Student
   studentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Student',
     required: true
   },
   
-  // Assigned Agent
   agentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Agent',
     required: true
   },
   
-  // College/University
+  consultancyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Consultancy'
+  },
+  
   collegeId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'College',
-    required: true
+    ref: 'College'
   },
   
-  // Insurance (Optional)
-  insuranceProviderId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'InsuranceProvider'
-  },
-  
-  // Program Details
   programDetails: {
     courseName: String,
+    courseCode: String,
     level: String,
-    campus: String,
-    intake: String,
     duration: String,
+    intake: String,
+    campus: String,
     tuitionFee: Number,
     currency: { type: String, default: 'AUD' }
   },
   
-  // Application Status
+  visaDetails: {
+    visaType: String,
+    subclass: String,
+    targetLodgeDate: Date,
+    actualLodgeDate: Date,
+    decisionDate: Date,
+    expiryDate: Date
+  },
+  
   status: {
     type: String,
     enum: [
@@ -66,118 +67,96 @@ const ApplicationSchema = new mongoose.Schema({
       'ready_for_submission',
       'submitted_to_college',
       'offer_received',
-      'offer_accepted',
+      'coe_received',
       'visa_lodged',
       'visa_granted',
+      'visa_refused',
       'completed',
-      'withdrawn',
-      'rejected'
+      'withdrawn'
     ],
     default: 'draft'
   },
   
-  statusHistory: [{
-    status: String,
-    changedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    changedAt: { type: Date, default: Date.now },
-    notes: String
-  }],
+  workflow: {
+    currentStage: String,
+    stages: [{
+      name: String,
+      status: String,
+      completedAt: Date,
+      completedBy: mongoose.Schema.Types.ObjectId
+    }],
+    blockers: [String]
+  },
   
-  // Form 956 Reference
   form956Id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Form956'
   },
   
-  // Service Agreement
   serviceAgreementId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'ServiceAgreement'
   },
   
-  // Documents
   documents: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Document'
+    documentId: mongoose.Schema.Types.ObjectId,
+    documentType: String,
+    uploadedAt: Date,
+    status: String
   }],
   
-  // Timeline & Deadlines
-  timeline: {
-    applicationStarted: Date,
-    form956Signed: Date,
-    documentsCompleted: Date,
-    submittedToCollege: Date,
-    offerReceived: Date,
-    offerAccepted: Date,
-    visaLodged: Date,
-    visaGranted: Date,
-    enrollmentConfirmed: Date
-  },
+  timeline: [{
+    event: String,
+    description: String,
+    performedBy: mongoose.Schema.Types.ObjectId,
+    timestamp: { type: Date, default: Date.now }
+  }],
   
-  deadlines: {
-    documentSubmission: Date,
-    offerReply: Date,
-    tuitionPayment: Date,
-    visaLodgement: Date
-  },
-  
-  // Financial Tracking
-  financials: {
-    tuitionFee: Number,
-    applicationFee: Number,
-    insuranceFee: Number,
-    otherFees: Number,
-    totalPaid: { type: Number, default: 0 },
-    currency: { type: String, default: 'AUD' }
-  },
-  
-  // Commission Distribution
-  commissions: {
-    collegeCommissionAmount: Number,
-    platformShare: Number,
-    agentShare: Number,
-    studentCashback: Number,
-    insuranceCommission: Number,
-    
-    isPaid: { type: Boolean, default: false },
-    paidAt: Date,
-    
-    transactionIds: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Transaction'
-    }]
-  },
-  
-  // Platform Lock-in
-  platformFlags: {
-    isOffPlatformAttempt: { type: Boolean, default: false },
-    offPlatformAttemptCount: { type: Number, default: 0 },
-    lastOffPlatformDetection: Date,
-    complianceWarnings: [String]
-  },
-  
-  // Notes
-  internalNotes: [{
-    author: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
+  notes: [{
     content: String,
+    createdBy: mongoose.Schema.Types.ObjectId,
+    isPrivate: Boolean,
     createdAt: { type: Date, default: Date.now }
+  }],
+  
+  financials: {
+    totalFee: Number,
+    paidAmount: Number,
+    pendingAmount: Number,
+    commissionEligible: Boolean,
+    commissionAmount: Number,
+    commissionPaid: Boolean
+  },
+  
+  deadlines: [{
+    type: String,
+    date: Date,
+    isCompleted: Boolean,
+    completedAt: Date
   }]
   
 }, {
   timestamps: true
 });
 
+// ⭐ FIXED: Generate unique application reference BEFORE validation
+ApplicationSchema.pre('validate', function(next) {
+  if (!this.applicationRef) {
+    const date = new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const month = ('0' + (date.getMonth() + 1)).slice(-2);
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    this.applicationRef = `APP${year}${month}${random}`;
+  }
+  next();
+});
+
 // Indexes
 ApplicationSchema.index({ applicationRef: 1 }, { unique: true });
 ApplicationSchema.index({ studentId: 1, status: 1 });
 ApplicationSchema.index({ agentId: 1, status: 1 });
-ApplicationSchema.index({ collegeId: 1, status: 1 });
-ApplicationSchema.index({ tenantId: 1, createdAt: -1 });
+ApplicationSchema.index({ tenantId: 1 });
+ApplicationSchema.index({ status: 1 });
+ApplicationSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Application', ApplicationSchema);

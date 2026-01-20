@@ -18,71 +18,75 @@ const AgentSchema = new mongoose.Schema({
   
   consultancyId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Consultancy',
-    required: true
+    ref: 'Consultancy'
   },
   
   personalInfo: {
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
     phone: String,
-    businessAddress: String,
+    officeAddress: String,
     city: String,
     state: String,
     postcode: String
   },
   
-  // MARN Registration Details
   marnNumber: {
     type: String,
     required: true,
     unique: true,
-    match: [/^\d{7}$/, 'MARN must be 7 digits']
+    validate: {
+      validator: function(v) {
+        return /^\d{7}$/.test(v); // 7-digit MARN
+      },
+      message: 'MARN must be 7 digits'
+    }
   },
   
   marnVerificationStatus: {
     type: String,
-    enum: ['pending', 'verified', 'expired', 'invalid'],
+    enum: ['pending', 'verified', 'failed', 'expired'],
     default: 'pending'
   },
   
   marnVerifiedAt: Date,
   marnExpiryDate: Date,
+  lastOMARACheck: Date,
   
-  // Professional Details
-  yearsOfExperience: Number,
   specializations: [{
     type: String,
-    enum: ['student_visa', 'skilled_migration', 'family_visa', 'business_visa', 'appeals']
+    enum: [
+      'student_visa',
+      'skilled_migration',
+      'family_visa',
+      'business_visa',
+      'temporary_visa',
+      'citizenship',
+      'appeals'
+    ]
   }],
   
   languages: [String],
   
-  // Platform Subscription
   subscriptionTier: {
     type: String,
-    enum: ['basic', 'premium', 'enterprise'],
-    default: 'basic'
+    enum: ['free', 'basic', 'professional', 'enterprise'],
+    default: 'free'
   },
   
   subscriptionStatus: {
     type: String,
-    enum: ['active', 'suspended', 'cancelled'],
-    default: 'active'
+    enum: ['active', 'inactive', 'suspended', 'cancelled'],
+    default: 'inactive'
   },
   
-  subscriptionStartDate: Date,
-  subscriptionEndDate: Date,
+  subscriptionExpiry: Date,
   
-  // Commission Settings
-  commissionRate: {
-    type: Number,
-    default: 15, // percentage
-    min: 10,
-    max: 25
+  commissionSettings: {
+    defaultRate: { type: Number, default: 15 },
+    platformFee: { type: Number, default: 7 }
   },
   
-  // Performance Metrics
   metrics: {
     totalClients: { type: Number, default: 0 },
     activeApplications: { type: Number, default: 0 },
@@ -93,36 +97,16 @@ const AgentSchema = new mongoose.Schema({
     totalCommissionsEarned: { type: Number, default: 0 }
   },
   
-  // Exclusive Platform Agreement
-  isPlatformExclusive: {
-    type: Boolean,
-    default: false
-  },
-  
-  exclusivityBonusRate: {
-    type: Number,
-    default: 0 // Additional % for exclusive agents
-  },
-  
-  // Compliance Flags
-  complianceIssues: [{
-    issue: String,
-    reportedAt: Date,
-    resolvedAt: Date,
-    severity: {
-      type: String,
-      enum: ['low', 'medium', 'high', 'critical']
-    }
-  }],
-  
-  lastOMARACheck: Date,
-  
-  // Bank Details for Payouts
   bankDetails: {
     accountName: String,
     bsb: String,
     accountNumber: String,
-    isVerified: Boolean
+    abn: String
+  },
+  
+  availability: {
+    isAcceptingClients: { type: Boolean, default: true },
+    maxActiveClients: { type: Number, default: 50 }
   }
   
 }, {
@@ -130,7 +114,9 @@ const AgentSchema = new mongoose.Schema({
 });
 
 // Indexes
+AgentSchema.index({ userId: 1 }, { unique: true });
 AgentSchema.index({ marnNumber: 1 }, { unique: true });
+AgentSchema.index({ tenantId: 1 });
 AgentSchema.index({ consultancyId: 1 });
 AgentSchema.index({ marnVerificationStatus: 1, subscriptionStatus: 1 });
 

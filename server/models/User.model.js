@@ -17,14 +17,14 @@ const UserSchema = new mongoose.Schema({
   password: {
     type: String,
     required: [true, 'Password is required'],
-    minlength: 8,
+    minlength: [8, 'Password must be at least 8 characters'],
     select: false
   },
   
   role: {
     type: String,
     enum: ['student', 'agent', 'college', 'insurance', 'admin'],
-    required: true
+    required: [true, 'Role is required']
   },
   
   isVerified: {
@@ -37,71 +37,70 @@ const UserSchema = new mongoose.Schema({
     default: true
   },
   
-  verificationToken: String,
-  verificationTokenExpire: Date,
-  resetPasswordToken: String,
-  resetPasswordExpire: Date,
-  
-  lastLogin: Date,
-  
-  // Tenant Isolation Field
   tenantId: {
     type: mongoose.Schema.Types.ObjectId,
     required: true,
     index: true
   },
   
+  verificationToken: String,
+  verificationTokenExpire: Date,
+  resetPasswordToken: String,
+  resetPasswordExpire: Date,
+  lastLogin: Date,
+  
 }, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  timestamps: true
 });
 
 // Indexes for performance
 UserSchema.index({ email: 1, tenantId: 1 }, { unique: true });
 UserSchema.index({ role: 1, isActive: 1 });
+UserSchema.index({ tenantId: 1 });
 
 // Hash password before saving
 UserSchema.pre('save', async function(next) {
   if (!this.isModified('password')) {
-    next();
+    return next();
   }
-  const salt = await bcrypt.genSalt(12);
+  
+  const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+  next();
 });
 
-// Match password method
+// Compare password
 UserSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// Generate JWT Token
+// Generate JWT token
 UserSchema.methods.getSignedJwtToken = function() {
   return jwt.sign(
     { 
       id: this._id, 
       role: this.role,
-      tenantId: this.tenantId 
+      tenantId: this.tenantId,
+      email: this.email
     },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRE }
+    { expiresIn: process.env.JWT_EXPIRE || '7d' }
   );
 };
 
-// Virtual populate based on role
-UserSchema.virtual('profile', {
-  ref: function() {
-    const roleMap = {
-      student: 'Student',
-      agent: 'Agent',
-      college: 'College',
-      insurance: 'InsuranceProvider'
-    };
-    return roleMap[this.role];
-  },
-  localField: '_id',
-  foreignField: 'userId',
-  justOne: true
-});
+// Generate verification token
+UserSchema.methods.getVerificationToken = function() {
+  const crypto = require('crypto');
+  const token = crypto.randomBytes(20).toString('hex');
+  
+  this.verificationToken = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
+  
+  this.verificationTokenExpire = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+  
+  return token;
+};
 
 module.exports = mongoose.model('User', UserSchema);

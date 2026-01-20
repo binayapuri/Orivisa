@@ -20,10 +20,8 @@ const connectDB = async () => {
     console.log('📊 Database: nexus_platform');
     console.log('🌐 Cluster: binaya.goq6t5f.mongodb.net\n');
     
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    // ⭐ REMOVED deprecated options
+    const conn = await mongoose.connect(process.env.MONGODB_URI);
 
     console.log('✅ MongoDB Connected Successfully!');
     console.log(`📍 Host: ${conn.connection.host}`);
@@ -49,7 +47,7 @@ const connectDB = async () => {
 connectDB();
 
 // ===========================================
-// MIDDLEWARE
+// MIDDLEWARE (MUST BE BEFORE ROUTES)
 // ===========================================
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
@@ -111,7 +109,7 @@ app.get('/api/health', (req, res) => {
     },
     environment: process.env.NODE_ENV || 'development',
     server: {
-      port: process.env.PORT || 5000,
+      port: process.env.PORT || 3000,
       node_version: process.version,
       platform: process.platform
     },
@@ -212,13 +210,36 @@ app.get('/api', (req, res) => {
   });
 });
 
-// Import routes (when ready)
-// app.use('/api/auth', require('./routes/auth.routes'));
-// app.use('/api/students', require('./routes/student.routes'));
-// app.use('/api/agents', require('./routes/agent.routes'));
-// app.use('/api/applications', require('./routes/application.routes'));
+// ⭐ AUTH ROUTES (MOVED HERE - AFTER MIDDLEWARE)
+app.use('/api/auth', require('./routes/auth.routes'));
 
-// ===========================================
+// ============================================
+// API ROUTES (Must be after middleware setup)
+// ============================================
+
+// Auth routes
+app.use('/api/auth', require('./routes/auth.routes'));
+
+// Student routes
+app.use('/api/students', require('./routes/student.routes'));
+
+// Calculator routes
+app.use('/api/calculator', require('./routes/calculator.routes'));
+
+// Agent routes
+app.use('/api/agents', require('./routes/agent.routes'));
+
+
+// Additional routes (will add later)
+// app.use('/api/agents', require('./routes/agent.routes'));
+
+app.use('/api/applications', require('./routes/application.routes'));
+
+
+// Form 956 routes
+app.use('/api/form956', require('./routes/form956.routes'));
+
+
 // ERROR HANDLERS
 // ===========================================
 
@@ -231,7 +252,9 @@ app.use((req, res) => {
       'GET /',
       'GET /api',
       'GET /api/health',
-      'GET /api/db-test'
+      'GET /api/db-test',
+      'POST /api/auth/register',
+      'POST /api/auth/login'
     ]
   });
 });
@@ -258,7 +281,7 @@ app.use((err, req, res, next) => {
 // ===========================================
 // START SERVER
 // ===========================================
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 
 const server = app.listen(PORT, () => {
   console.log('╔════════════════════════════════════════════╗');
@@ -272,11 +295,14 @@ const server = app.listen(PORT, () => {
   console.log('  📍 URL:           ', `http://localhost:${PORT}`);
   console.log('  💚 Health Check:  ', `http://localhost:${PORT}/api/health`);
   console.log('  📊 DB Test:       ', `http://localhost:${PORT}/api/db-test`);
+  console.log('  🔐 Register:      ', `http://localhost:${PORT}/api/auth/register`);
+  console.log('  🔑 Login:         ', `http://localhost:${PORT}/api/auth/login`);
   console.log('');
   console.log('════════════════════════════════════════════════');
   console.log('');
   console.log('  ✅ MongoDB Connected');
   console.log('  ✅ API Routes Loaded');
+  console.log('  ✅ Auth Routes Active');
   console.log('  ✅ Middleware Configured');
   console.log('  ⏳ Ready to accept requests...');
   console.log('');
