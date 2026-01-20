@@ -1,0 +1,12 @@
+{
+    "name": "nexus-platform-mern",
+    "version": "1.0.0",
+    "description": "",
+    "main": "test-connection.js",
+    "scripts": {
+      "test": "node test-connection.js"
+    },
+    "dependencies": {
+      "mongodb": "^6.0.0"
+    }
+  }
