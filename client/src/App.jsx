@@ -7,6 +7,8 @@ import RegisterPage from './pages/RegisterPage';
 import StudentDashboard from './pages/student/Dashboard';
 import AgentDashboard from './pages/agent/Dashboard';
 import MainLayout from './components/layout/MainLayout';
+import axios from 'axios';
+axios.defaults.baseURL = 'http://localhost:5173'; // Or your server port
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated } = useAuthStore();
@@ -24,6 +26,7 @@ function App() {
         <Route path="/:role/register" element={<RegisterPage />} />
         <Route path="/student/dashboard" element={<ProtectedRoute><MainLayout><StudentDashboard /></MainLayout></ProtectedRoute>} />
         <Route path="/agent/dashboard" element={<ProtectedRoute><MainLayout><AgentDashboard /></MainLayout></ProtectedRoute>} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

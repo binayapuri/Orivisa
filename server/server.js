@@ -402,6 +402,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 
 const app = express();
+const adminRoutes = require('./routes/admin.routes');
 
 console.log('\n🚀 Starting Nexus Platform Server...\n');
 
@@ -496,6 +497,7 @@ app.use((req, res, next) => {
   }
   next();
 });
+app.use('/api/admin', adminRoutes);
 
 // ===========================================
 // ROUTES
