@@ -15,15 +15,23 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const success = await login(email, password, role);
-      if (success) {
+      const result = await login(email, password, role);
+      if (result.success) {
         toast.success('Login successful!');
         navigate(`/${role}/dashboard`);
       } else {
-        toast.error('Invalid email or password');
+        if (result.roleMismatch) {
+          toast.error(result.error);
+          // Optionally redirect to correct role login page
+          setTimeout(() => {
+            navigate(`/${result.actualRole}/login`);
+          }, 2000);
+        } else {
+          toast.error(result.error || 'Invalid email or password');
+        }
       }
     } catch (error) {
-      toast.error('Login failed');
+      toast.error('Login failed. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -49,15 +49,47 @@ connectDB();
 // ===========================================
 // MIDDLEWARE (MUST BE BEFORE ROUTES)
 // ===========================================
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-app.options('*', cors());
+// CORS configuration - allow multiple origins for development
+const allowedOrigins = process.env.CLIENT_URL 
+  ? process.env.CLIENT_URL.split(',').map(url => url.trim())
+  : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174', 'http://localhost:5175'];
 
-app.use(helmet());
+// In development, allow all localhost origins
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, Postman, or curl requests)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // In development, allow any localhost origin
+    if (isDevelopment && origin.includes('localhost')) {
+      return callback(null, true);
+    }
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Reject other origins
+    console.warn(`CORS blocked origin: ${origin}`);
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+}));
+
+
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -65,6 +97,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Request logger
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.path}`);
+  if (req.method === 'OPTIONS' || req.path.includes('/auth/register')) {
+    console.log(`  Origin: ${req.headers.origin || 'none'}`);
+    console.log(`  Headers:`, req.headers['access-control-request-headers'] || 'none');
+  }
   next();
 });
 
@@ -113,7 +149,7 @@ app.get('/api/health', (req, res) => {
     },
     environment: process.env.NODE_ENV || 'development',
     server: {
-      port: process.env.PORT || 3000,
+      port: process.env.PORT || 5000,
       node_version: process.version,
       platform: process.platform
     },
@@ -268,6 +304,13 @@ app.use((err, req, res, next) => {
   console.error('Error:', err.message);
   console.error('Stack:', err.stack);
 
+  // Set CORS headers even on errors
+  const origin = req.headers.origin;
+  if (origin && (isDevelopment && origin.includes('localhost') || allowedOrigins.includes(origin))) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+
   res.status(err.statusCode || 500).json({
     success: false,
     message: err.message || 'Internal Server Error',
@@ -282,7 +325,7 @@ app.use((err, req, res, next) => {
 // ===========================================
 // START SERVER
 // ===========================================
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
   console.log('╔════════════════════════════════════════════╗');

@@ -33,14 +33,9 @@ const AgentSchema = new mongoose.Schema({
   
   marnNumber: {
     type: String,
-    required: true,
-    unique: true,
-    validate: {
-      validator: function(v) {
-        return /^\d{7}$/.test(v); // 7-digit MARN
-      },
-      message: 'MARN must be 7 digits'
-    }
+    required: false,
+    default: '',
+    sparse: true // Allows multiple empty strings but unique non-empty values
   },
   
   marnVerificationStatus: {
@@ -115,7 +110,7 @@ const AgentSchema = new mongoose.Schema({
 
 // Indexes
 AgentSchema.index({ userId: 1 }, { unique: true });
-AgentSchema.index({ marnNumber: 1 }, { unique: true });
+AgentSchema.index({ marnNumber: 1 }, { unique: true, sparse: true }); // Sparse index allows multiple empty/null values
 AgentSchema.index({ tenantId: 1 });
 AgentSchema.index({ consultancyId: 1 });
 AgentSchema.index({ marnVerificationStatus: 1, subscriptionStatus: 1 });

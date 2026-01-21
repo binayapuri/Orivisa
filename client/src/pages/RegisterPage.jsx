@@ -43,7 +43,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import axios from 'axios';
+import api from '../lib/axios';
 
 export default function RegisterPage() {
   const { role } = useParams();
@@ -86,8 +86,8 @@ export default function RegisterPage() {
       toast.error('Password is required');
       return;
     }
-    if (formData.password.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    if (formData.password.length < 8) {
+      toast.error('Password must be at least 8 characters');
       return;
     }
     if (!formData.confirmPassword) {
@@ -96,10 +96,6 @@ export default function RegisterPage() {
     }
     if (formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
-      return;
-    }
-    if (role === 'agent' && !formData.marnNumber) {
-      toast.error('MARN number is required for agents');
       return;
     }
 
@@ -123,7 +119,7 @@ export default function RegisterPage() {
         payload.marnNumber = formData.marnNumber;
       }
 
-      const response = await axios.post('http://localhost:5000/api/auth/register', payload);
+      const response = await api.post('/auth/register', payload);
 
       if (response.data.success) {
         localStorage.setItem('token', response.data.token);
@@ -132,9 +128,30 @@ export default function RegisterPage() {
         navigate(`/${role}/dashboard`);
       }
     } catch (error) {
-      const errorMsg = error.response?.data?.message || 'Registration failed';
-      toast.error(errorMsg);
       console.error('Registration error:', error);
+      
+      let errorMsg = 'Registration failed. Please try again.';
+      
+      if (error.response) {
+        // Server responded with error
+        errorMsg = error.response.data?.message || error.response.data?.error || errorMsg;
+        
+        // Log full error details for debugging
+        console.error('Error response:', {
+          status: error.response.status,
+          data: error.response.data
+        });
+      } else if (error.request) {
+        // Request made but no response
+        errorMsg = 'Unable to connect to server. Please check your connection.';
+        console.error('No response received:', error.request);
+      } else {
+        // Error setting up request
+        errorMsg = error.message || errorMsg;
+        console.error('Request setup error:', error);
+      }
+      
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -191,16 +208,15 @@ export default function RegisterPage() {
 
           {role === 'agent' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">MARN Number</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">MARN Number (Optional)</label>
               <input
                 type="text"
                 name="marnNumber"
                 value={formData.marnNumber}
                 onChange={handleChange}
-                placeholder="Enter your MARN number (7 digits)"
+                placeholder="Enter your MARN number (optional)"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 disabled={loading}
-                required={role === 'agent'}
               />
             </div>
           )}
@@ -212,7 +228,7 @@ export default function RegisterPage() {
               name="password"
               value={formData.password}
               onChange={handleChange}
-              placeholder="Enter password (min 6 characters)"
+              placeholder="Enter password (min 8 characters)"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               disabled={loading}
               required

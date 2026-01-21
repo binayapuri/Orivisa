@@ -23,6 +23,14 @@ router.post('/register', async (req, res) => {
       });
     }
 
+    // Validate name fields for student/agent
+    if ((role === 'student' || role === 'agent') && (!firstName || !lastName)) {
+      return res.status(400).json({
+        success: false,
+        message: 'First name and last name are required'
+      });
+    }
+
     // Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -51,29 +59,21 @@ router.post('/register', async (req, res) => {
         userId: user._id,
         tenantId,
         personalInfo: {
-          firstName: firstName || '',
-          lastName: lastName || '',
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
           phone: phone || ''
         }
       });
     } else if (role === 'agent') {
-      if (!marnNumber) {
-        await User.findByIdAndDelete(user._id);
-        return res.status(400).json({
-          success: false,
-          message: 'MARN number is required for agents'
-        });
-      }
-      
       profile = await Agent.create({
         userId: user._id,
         tenantId,
         personalInfo: {
-          firstName: firstName || '',
-          lastName: lastName || '',
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
           phone: phone || ''
         },
-        marnNumber,
+        marnNumber: marnNumber || '',
         marnVerificationStatus: 'pending'
       });
     }
@@ -96,9 +96,28 @@ router.post('/register', async (req, res) => {
 
   } catch (error) {
     console.error('Register error:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: messages.join(', ')
+      });
+    }
+    
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already registered'
+      });
+    }
+    
+    // Handle other errors
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message || 'Registration failed. Please try again.'
     });
   }
 });
