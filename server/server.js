@@ -50,9 +50,13 @@ connectDB();
 // MIDDLEWARE (MUST BE BEFORE ROUTES)
 // ===========================================
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+app.options('*', cors());
+
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
@@ -209,9 +213,6 @@ app.get('/api', (req, res) => {
     status: 'operational'
   });
 });
-
-// ⭐ AUTH ROUTES (MOVED HERE - AFTER MIDDLEWARE)
-app.use('/api/auth', require('./routes/auth.routes'));
 
 // ============================================
 // API ROUTES (Must be after middleware setup)
