@@ -8,6 +8,7 @@ import StudentDashboard from './pages/student/Dashboard';
 import AgentDashboard from './pages/agent/Dashboard';
 import MainLayout from './components/layout/MainLayout';
 import axios from 'axios';
+import AdminDashboard from './components/Dashboard/AdminDashboard';
 axios.defaults.baseURL = 'http://localhost:5173'; // Or your server port
 
 const ProtectedRoute = ({ children }) => {
